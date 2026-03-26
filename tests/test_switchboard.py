@@ -56,16 +56,6 @@ def test_create_user_converts_id_to_int() -> None:
     assert user.id == 3
 
 
-def test_create_user_returns_correct_type() -> None:
-    switchboard = Switchboard()
-    
-    first_user = switchboard.create_user("1", "Alice Laren", "+79990000000")
-    assert isinstance(first_user, LocalUser)
-    
-    second_user = switchboard.create_user("2", "Gilbert North", "+22233344455")
-    assert isinstance(second_user, ForeignUser)
-
-
 def test_caller_and_receiver_phone_location() -> None:
     switchboard = Switchboard()
 
@@ -75,6 +65,16 @@ def test_caller_and_receiver_phone_location() -> None:
 
     assert switchboard.is_local_phone_number(new_call.caller.phone)
     assert not switchboard.is_local_phone_number(new_call.receiver.phone)
+
+
+def test_create_user_returns_correct_type() -> None:
+    switchboard = Switchboard()
+    
+    first_user = switchboard.create_user("1", "Alice Laren", "+79990000000")
+    assert isinstance(first_user, LocalUser)
+    
+    second_user = switchboard.create_user("2", "Gilbert North", "+22233344455")
+    assert isinstance(second_user, ForeignUser)
 
 
 def test_caller_and_receiver_data_correctly_processed() -> None:
