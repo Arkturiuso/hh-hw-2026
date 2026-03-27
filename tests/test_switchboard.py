@@ -104,3 +104,11 @@ def test_register_call_with_spaces_in_names() -> None:
     
     assert new_call.caller.fullname == "Charlie Green"
     assert new_call.receiver.fullname == "John Pork"
+
+
+def test_register_call_with_invalid_fields_amount() -> None:
+    switchboard = Switchboard()
+    
+    with pytest.raises(ValueError, match='Expected 6 fields.'):
+        switchboard.register_call("1,Ivan,+79990000000,2,John")
+    

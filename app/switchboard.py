@@ -39,8 +39,10 @@ class Switchboard:
         Например: "1001,Иван Петров,+71234567890,1085,Адам Яковлев,+71255556666"
         '''
         raw_parts = raw_call.split(',')
+        if len(raw_parts) != 6:
+            raise ValueError(f"Expected 6 fields. Got {len(raw_parts)}")
+        
         cleaned_parts = self.strip_all(*raw_parts)
-
         caller_parts = cleaned_parts[:3]
         receiver_parts = cleaned_parts[3:]
 
