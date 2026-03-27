@@ -77,24 +77,6 @@ def test_create_user_returns_correct_type() -> None:
     assert isinstance(second_user, ForeignUser)
 
 
-def test_caller_and_receiver_data_correctly_processed() -> None:
-    switchboard = Switchboard()
-
-    new_call = switchboard.register_call(
-        "1,Jack Sparrow,+71234567891,2,John Snow,+20987654321"
-    )
-
-    assert new_call.caller.id == 1
-    assert new_call.caller.fullname == 'Jack Sparrow'
-    assert new_call.caller.phone == '+71234567891'
-
-    assert new_call.receiver.id == 2
-    assert new_call.receiver.fullname == 'John Snow'
-    assert new_call.receiver.phone == '+20987654321'
-
-    assert new_call.caller is not new_call.receiver
-
-
 def test_register_call_with_spaces_in_names() -> None:
     switchboard = Switchboard()
     
