@@ -47,15 +47,67 @@ def test_register_call_counts_calls_between_local_and_foreign_users() -> None:
     assert switchboard.get_cross_border_calls_count() == 1
 
 
-def test_create_user_converts_id_to_int() -> None:
+def test_parse_id() -> None:
     switchboard = Switchboard()
     
-    user = switchboard.create_user("3", "Pedro Grunge" , "+70009998887")
+    assert switchboard.parse_id("1") == 1
+    assert switchboard.parse_id("123") == 123
     
-    assert isinstance(user.id, int)
-    assert user.id == 3
+    with pytest.raises(ValueError, match="Invalid user id"):
+        switchboard.parse_id("12З")
+    
+    with pytest.raises(ValueError, match="Invalid user id"):
+        switchboard.parse_id("O0O")
+    
+    with pytest.raises(ValueError, match="Invalid user id"):
+        switchboard.parse_id("4.7")
+
+    with pytest.raises(ValueError, match="Invalid user id"):
+        switchboard.parse_id("4 7")
 
 
+def test_is_valid_fullname() -> None:
+    """Проверка валидации полного имени"""
+    switchboard = Switchboard()
+    
+
+    assert switchboard.is_valid_fullname("Ivan Ivanov") is True 
+    assert switchboard.is_valid_fullname("Ivan Ivanovich Ivanov") is True
+    assert switchboard.is_valid_fullname("  Ivan Ivanov    ") is True 
+    
+    assert switchboard.is_valid_fullname("Ivan") is False
+    assert switchboard.is_valid_fullname("") is False
+    assert switchboard.is_valid_fullname("Ivan Ivanov Ali Ivanovich") is False
+
+
+def test_is_valid_foreign_phone() -> None:
+    switchboard = Switchboard()
+    
+    assert switchboard.is_valid_foreign_phone("+15551234567") is True
+    assert switchboard.is_valid_foreign_phone("+431234567") is True
+    
+    assert switchboard.is_valid_foreign_phone("+7567824567") is False
+    assert switchboard.is_valid_foreign_phone("+44 201 234 56 78") is False
+    assert switchboard.is_valid_foreign_phone("15551234567") is False
+    assert switchboard.is_valid_foreign_phone("+7123OOO") is False
+
+
+def test_phone_number_edge_cases() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(ValueError, match='Invalid phone number'):
+        switchboard.register_call("5,Jane Doe,+331,6,Alex Doe,+442012345678")
+    
+    with pytest.raises(ValueError, match='Invalid phone number'):
+        switchboard.register_call("4,John Doe,33123456567,6,Alex Doe,+442012345678")
+    
+    with pytest.raises(ValueError, match='Invalid phone number'):
+        switchboard.register_call("5,Jane Doe,+442012345678,6,Alex Doe,+44-201-234-56-78")
+
+    with pytest.raises(ValueError, match='Invalid phone number'):
+        switchboard.register_call("4,John Doe,+7123З0123,6,Alex Doe,+442012345678")
+
+    
 def test_caller_and_receiver_phone_location() -> None:
     switchboard = Switchboard()
 
@@ -63,8 +115,8 @@ def test_caller_and_receiver_phone_location() -> None:
         "4,Charlie Green,+70009998887,5,John Pork,+488997766554"
     )
 
-    assert switchboard.is_local_phone_number(new_call.caller.phone)
-    assert not switchboard.is_local_phone_number(new_call.receiver.phone)
+    assert switchboard.is_valid_local_phone(new_call.caller.phone)
+    assert switchboard.is_valid_foreign_phone(new_call.receiver.phone)
 
 
 def test_create_user_returns_correct_type() -> None:
@@ -93,4 +145,5 @@ def test_register_call_with_invalid_fields_amount() -> None:
     
     with pytest.raises(ValueError, match='Expected 6 fields.'):
         switchboard.register_call("1,Ivan,+79990000000,2,John")
+
     

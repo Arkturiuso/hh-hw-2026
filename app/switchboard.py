@@ -26,10 +26,31 @@ class Switchboard:
     @staticmethod
     def strip_all(*args: str) -> tuple[str, ...]:
         return tuple(arg.strip() for arg in args)
+    
+    @staticmethod 
+    def parse_id(id: str) -> int:
+        try:
+            return int(id)
+        except ValueError:
+            raise ValueError(f"Invalid user id: {id}")
+        
+    @staticmethod
+    def is_valid_fullname(fullname: str) -> bool:
+        if not fullname:
+            return False
+        
+        fullname_parts = fullname.split()
+        return len(fullname_parts) in (2, 3)
+     
+    @staticmethod
+    def is_valid_local_phone(phone_number: str) -> bool:
+        return (phone_number.startswith(LOCAL_PHONE_PREFIX) and 
+                len(phone_number) == 12 and phone_number[1:].isdigit())
 
     @staticmethod
-    def is_local_phone_number(phone_number: str) -> bool:
-        return phone_number.startswith(LOCAL_PHONE_PREFIX)
+    def is_valid_foreign_phone(phone_number: str) -> bool:
+        return (phone_number.startswith('+') and len(phone_number) >= 9 and
+                phone_number[1] != '7' and phone_number[1:].isdigit())
 
     def register_call(self, raw_call: str) -> ActiveCall:
         '''
@@ -58,10 +79,16 @@ class Switchboard:
         return active_call
     
     def create_user(self, user_id: str, user_fullname: str, user_phone_number: str) -> User:
-        user_id = int(user_id)
-        if self.is_local_phone_number(user_phone_number):
-            return LocalUser(user_id, user_fullname, user_phone_number)
-        return ForeignUser(user_id, user_fullname, user_phone_number)
+        numeric_user_id = self.parse_id(user_id)
+        if not self.is_valid_fullname(user_fullname):
+            raise ValueError(f"Invalid fullname: {user_fullname}")
+
+        if self.is_valid_local_phone(user_phone_number):
+            return LocalUser(numeric_user_id, user_fullname, user_phone_number)
+
+        if self.is_valid_foreign_phone(user_phone_number):
+            return ForeignUser(numeric_user_id, user_fullname, user_phone_number)
+        raise ValueError(f"Invalid phone number: {user_phone_number}")
 
     def get_active_calls_count(self) -> int:
         return len(self._active_calls)
