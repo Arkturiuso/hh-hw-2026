@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import re
+
 from app.users import User, LocalUser, ForeignUser
+
 
 
 LOCAL_PHONE_PREFIX = "+7"
@@ -29,14 +32,13 @@ class Switchboard:
     
     @staticmethod 
     def parse_id(id: str) -> int:
-        try:
-            return int(id)
-        except ValueError:
+        if not re.match(r'^[1-9]\d*$', id):
             raise ValueError(f"Invalid user id: {id}")
+        return int(id)
         
     @staticmethod
     def is_valid_fullname(fullname: str) -> bool:
-        if not fullname:
+        if not all(char.isalpha() or char.isspace() for char in fullname):
             return False
         
         fullname_parts = fullname.split()
@@ -44,13 +46,20 @@ class Switchboard:
      
     @staticmethod
     def is_valid_local_phone(phone_number: str) -> bool:
-        return (phone_number.startswith(LOCAL_PHONE_PREFIX) and 
-                len(phone_number) == 12 and phone_number[1:].isdigit())
+        pattern = r'^\+7\d{10}$'
+        return bool(re.match(pattern, phone_number))
 
     @staticmethod
     def is_valid_foreign_phone(phone_number: str) -> bool:
-        return (phone_number.startswith('+') and len(phone_number) >= 9 and
-                phone_number[1] != '7' and phone_number[1:].isdigit())
+        pattern = r'^\+[1-68-9]\d{8,}$'
+        return bool(re.match(pattern, phone_number))
+    
+    def is_duplicate_call(self, caller_id: int, receiver_id: int) -> bool: 
+        for active_call in self._active_calls:
+            if (caller_id == active_call.caller.id and
+                receiver_id == active_call.receiver.id):
+                return True
+        return False
 
     def register_call(self, raw_call: str) -> ActiveCall:
         '''
@@ -69,6 +78,12 @@ class Switchboard:
 
         caller = self.create_user(*caller_parts)
         receiver = self.create_user(*receiver_parts)
+
+        if caller.id == receiver.id:
+            raise ValueError("Caller cannot call himself")
+        
+        if self.is_duplicate_call(caller.id, receiver.id):
+            raise ValueError(f'Duplicate call from {caller.id} to {receiver.id}')
         
         active_call = ActiveCall(caller, receiver)
         self._active_calls.append(active_call)

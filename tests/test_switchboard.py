@@ -65,6 +65,12 @@ def test_parse_id() -> None:
     with pytest.raises(ValueError, match="Invalid user id"):
         switchboard.parse_id("4 7")
 
+    with pytest.raises(ValueError, match="Invalid user id"):
+        switchboard.parse_id("0")
+
+    with pytest.raises(ValueError, match="Invalid user id"):
+        switchboard.parse_id("-3")
+
 
 def test_is_valid_fullname() -> None:
     """Проверка валидации полного имени"""
@@ -78,6 +84,7 @@ def test_is_valid_fullname() -> None:
     assert switchboard.is_valid_fullname("Ivan") is False
     assert switchboard.is_valid_fullname("") is False
     assert switchboard.is_valid_fullname("Ivan Ivanov Ali Ivanovich") is False
+    assert switchboard.is_valid_fullname("2 3") is False
 
 
 def test_is_valid_foreign_phone() -> None:
@@ -146,4 +153,59 @@ def test_register_call_with_invalid_fields_amount() -> None:
     with pytest.raises(ValueError, match='Expected 6 fields.'):
         switchboard.register_call("1,Ivan,+79990000000,2,John")
 
+
+def test_register_caller_unable_call_himself() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(ValueError, match="Caller cannot call himself"):
+        switchboard.register_call(
+            "1,Ivan Ivanov,+79990000000,1,Ivan Ivanov,+79990000000"
+        )
     
+    with pytest.raises(ValueError, match="Caller cannot call himself"):
+        switchboard.register_call(
+            "2,John Smith,+12222222222,2,John Smith,+12222222222"
+        )
+
+
+def test_register_call_duplicate_calls_raise_error() -> None:
+    switchboard = Switchboard()
+
+    switchboard.register_call(
+        "1,Ivan Ivanov,+79990000000,2,John Smith,+12222222222"
+    )
+    
+    with pytest.raises(ValueError, match="Duplicate call"):
+        switchboard.register_call(
+            "1,Ivan Ivanov,+79990000000,2,John Smith,+12222222222"
+        )
+
+    with pytest.raises(ValueError, match="Duplicate call"):
+        switchboard.register_call(
+            "1,Petrov Petr,+70009998887,2,Swen Rein,+488997766554"
+        )
+
+
+def test_register_call_different_order_calls_allowed() -> None:
+    switchboard = Switchboard()
+
+    switchboard.register_call(
+        "1,Ivan Ivanov,+79990000000,2,John Smith,+12222222222"
+    )
+
+    switchboard.register_call(
+        "2,John Smith,+12222222222,1,Ivan Ivanov,+79990000000"
+    )
+
+
+def test_large_number_of_calls() -> None:
+    switchboard = Switchboard()
+    calls_count = 10_000
+    
+    for call in range(1, calls_count + 1):
+        switchboard.register_call(
+            f"{call},Ivanov Ivan,+79990000000,{call + 1},Petrov Petr,+15551234567"
+        )
+    
+    assert switchboard.get_active_calls_count() == calls_count
+    assert switchboard.get_cross_border_calls_count() == calls_count
