@@ -209,3 +209,131 @@ def test_large_number_of_calls() -> None:
     
     assert switchboard.get_active_calls_count() == calls_count
     assert switchboard.get_cross_border_calls_count() == calls_count
+
+
+def test_show_call_info() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    
+    info = switchboard.show_call_info(0)
+    assert 'Ivan Ivanov' in info
+    assert 'John Smith' in info
+    assert '+79990000000' in info
+    assert '+15551234567' in info
+
+
+def test_show_call_info_invalid_index() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    
+    with pytest.raises(IndexError, match="Invalid call index"):
+        switchboard.show_call_info(5)
+
+    with pytest.raises(IndexError, match="Invalid call index"):
+        switchboard.show_call_info(-1)
+
+
+def test_find_user_calls() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,3,Peter Brown,+15551234568")
+    
+    calls = switchboard.find_user_calls(1)
+    assert len(calls) == 2
+    
+    calls = switchboard.find_user_calls(4)
+    assert len(calls) == 0
+
+
+def test_find_caller_calls() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("2,John Smith,+15551234567,3,Peter Brown,+15551234568")
+    
+    calls = switchboard.find_caller_calls(1)
+    assert len(calls) == 1
+
+    calls = switchboard.find_caller_calls(3)
+    assert len(calls) == 0
+
+
+def test_find_receiver_calls() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("3,Peter Brown,+15551234568,1,Ivan Ivanov,+79990000000")
+    
+    calls = switchboard.find_receiver_calls(2)
+    assert len(calls) == 1
+    
+    calls = switchboard.find_receiver_calls(3)
+    assert len(calls) == 0
+
+
+def test_end_call_by_index() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("3,Petr Petrov,+79991112233,4,Maria Grey,+15559876543")
+    
+    assert switchboard.get_active_calls_count() == 2
+    
+    ended_call = switchboard.end_call_by_index(0)
+    assert ended_call.caller.id == 1
+    assert switchboard.get_active_calls_count() == 1
+
+    with pytest.raises(IndexError, match="Invalid call index"):
+        switchboard.end_call_by_index(3)
+
+
+def test_end_last_call() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("3,Petr Petrov,+79991112233,4,Maria Grey,+15559876543")
+    
+    ended_call = switchboard.end_last_call()
+    assert ended_call.caller.id == 3
+    assert switchboard.get_active_calls_count() == 1
+
+
+def test_end_last_call_empty() -> None:
+    switchboard = Switchboard()
+    
+    with pytest.raises(ValueError, match="No active calls"):
+        switchboard.end_last_call()
+
+
+def test_end_all_calls() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("3,Petr Petrov,+79991112233,4,Maria Grey,+15559876543")
+    
+    ended_calls_count = switchboard.end_all_calls()
+    
+    assert ended_calls_count == 2
+    assert switchboard.get_active_calls_count() == 0
+    assert switchboard.get_cross_border_calls_count() == 0
+
+
+def test_get_all_active_participant_ids() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,3,Petr Petrov,+15551234568")
+    
+    participants = switchboard.get_all_active_participant_ids()
+    assert participants == {1, 2, 3}
+
+
+def test_get_all_active_participant_ids_empty() -> None:
+    switchboard = Switchboard()
+    
+    participants = switchboard.get_all_active_participant_ids()
+    assert participants == set()
+
+
+def test_get_user_calls_count() -> None:
+    switchboard = Switchboard()
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,2,John Smith,+15551234567")
+    switchboard.register_call("1,Ivan Ivanov,+79990000000,3,Petr Petrov,+15551234568")
+    
+    assert switchboard.get_user_calls_count(1) == 2
+    assert switchboard.get_user_calls_count(2) == 1
+    assert switchboard.get_user_calls_count(4) == 0

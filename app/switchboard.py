@@ -105,9 +105,61 @@ class Switchboard:
             return ForeignUser(numeric_user_id, user_fullname, user_phone_number)
         raise ValueError(f"Invalid phone number: {user_phone_number}")
 
+    def show_call_info(self, call_index: int) -> str:
+        if call_index >= len(self._active_calls) or call_index < 0:
+            raise IndexError(f"Invalid call index: {call_index}")
+        
+        call = self._active_calls[call_index]
+        return f'''Звонок #{call_index}
+                    Отправитель: {call.caller.fullname} ({call.caller.phone})
+                    Получатель: {call.receiver.fullname} ({call.receiver.phone})\n'''
+    
+    def find_user_calls(self, user_id: int) -> list[ActiveCall]:
+        return [call for call in self._active_calls 
+            if call.caller.id == user_id or call.receiver.id == user_id]
+
+    def find_caller_calls(self, user_id: int) -> list[ActiveCall]:
+        return [call for call in self._active_calls if call.caller.id == user_id]
+
+    def find_receiver_calls(self, user_id: int) -> list[ActiveCall]:
+        return [call for call in self._active_calls if call.receiver.id == user_id]
+    
+    def end_call_by_index(self, call_index: int) -> ActiveCall:
+        if call_index < 0 or call_index >= len(self._active_calls):
+            raise IndexError(f"Invalid call index: {call_index}")
+        
+        ended_call = self._active_calls.pop(call_index)
+        if ended_call.is_cross_border:
+            self._cross_border_calls_count -= 1
+        return ended_call
+    
+    def end_last_call(self) -> ActiveCall:
+        if not self._active_calls:
+            raise ValueError("No active calls")
+        
+        ended_call = self._active_calls.pop()
+        if ended_call.is_cross_border:
+            self._cross_border_calls_count -= 1
+        return ended_call
+    
+    def end_all_calls(self) -> int:
+        count = len(self._active_calls)
+        self._active_calls.clear()
+        self._cross_border_calls_count = 0
+        return count
+
+    def get_all_active_participant_ids(self) -> set[int]:
+        participants = set()
+        for call in self._active_calls:
+            participants.add(call.caller.id)
+            participants.add(call.receiver.id)
+        return participants
+
+    def get_user_calls_count(self, user_id: int) -> int:
+        return len(self.find_user_calls(user_id))
+
     def get_active_calls_count(self) -> int:
         return len(self._active_calls)
 
     def get_cross_border_calls_count(self) -> int:
         return self._cross_border_calls_count
-
