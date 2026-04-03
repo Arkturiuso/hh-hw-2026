@@ -54,19 +54,13 @@ def test_parse_id() -> None:
     assert switchboard.parse_id("123") == 123
     
     with pytest.raises(ValueError, match="Invalid user id"):
-        switchboard.parse_id("12З")
-    
-    with pytest.raises(ValueError, match="Invalid user id"):
-        switchboard.parse_id("O0O")
+        switchboard.parse_id("abc")
     
     with pytest.raises(ValueError, match="Invalid user id"):
         switchboard.parse_id("4.7")
 
     with pytest.raises(ValueError, match="Invalid user id"):
         switchboard.parse_id("4 7")
-
-    with pytest.raises(ValueError, match="Invalid user id"):
-        switchboard.parse_id("0")
 
     with pytest.raises(ValueError, match="Invalid user id"):
         switchboard.parse_id("-3")

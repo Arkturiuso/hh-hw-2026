@@ -25,6 +25,10 @@ class Switchboard:
     def __init__(self) -> None:
         self._active_calls: list[ActiveCall] = []
         self._cross_border_calls_count: int = 0
+        self._calls_by_users: dict[int, list[ActiveCall]] = {}
+        self._calls_by_callers: dict[int, list[ActiveCall]] = {}
+        self._calls_by_receivers: dict[int, list[ActiveCall]] = {}
+        self._active_calls_set: set[tuple[int, int]] = set()
 
     @staticmethod
     def strip_all(*args: str) -> tuple[str, ...]:
@@ -32,7 +36,7 @@ class Switchboard:
     
     @staticmethod 
     def parse_id(id: str) -> int:
-        if not re.match(r'^[1-9]\d*$', id):
+        if not id.isnumeric():
             raise ValueError(f"Invalid user id: {id}")
         return int(id)
         
@@ -54,12 +58,8 @@ class Switchboard:
         pattern = r'^\+[1-68-9]\d{8,}$'
         return bool(re.match(pattern, phone_number))
     
-    def is_duplicate_call(self, caller_id: int, receiver_id: int) -> bool: 
-        for active_call in self._active_calls:
-            if (caller_id == active_call.caller.id and
-                receiver_id == active_call.receiver.id):
-                return True
-        return False
+    def is_duplicate_call(self, call_participant_ids: tuple[int, int]) -> bool: 
+        return call_participant_ids in self._active_calls_set
 
     def register_call(self, raw_call: str) -> ActiveCall:
         '''
@@ -78,18 +78,27 @@ class Switchboard:
 
         caller = self.create_user(*caller_parts)
         receiver = self.create_user(*receiver_parts)
+        call_participants_ids = (caller.id, receiver.id)
 
         if caller.id == receiver.id:
             raise ValueError("Caller cannot call himself")
-        
-        if self.is_duplicate_call(caller.id, receiver.id):
+
+        if self.is_duplicate_call(call_participants_ids):
             raise ValueError(f'Duplicate call from {caller.id} to {receiver.id}')
         
         active_call = ActiveCall(caller, receiver)
         self._active_calls.append(active_call)
+        self._active_calls_set.add(call_participants_ids)
 
         if active_call.is_cross_border:
             self._cross_border_calls_count += 1
+
+        self._calls_by_callers.setdefault(caller.id, []).append(active_call)
+        
+        self._calls_by_receivers.setdefault(receiver.id, []).append(active_call)
+        
+        self._calls_by_users.setdefault(caller.id, []).append(active_call)
+        self._calls_by_users.setdefault(receiver.id, []).append(active_call)
 
         return active_call
     
@@ -115,20 +124,40 @@ class Switchboard:
                     Получатель: {call.receiver.fullname} ({call.receiver.phone})\n'''
     
     def find_user_calls(self, user_id: int) -> list[ActiveCall]:
-        return [call for call in self._active_calls 
-            if call.caller.id == user_id or call.receiver.id == user_id]
+        return self._calls_by_users.get(user_id, []).copy()
 
     def find_caller_calls(self, user_id: int) -> list[ActiveCall]:
-        return [call for call in self._active_calls if call.caller.id == user_id]
+        return self._calls_by_callers.get(user_id, []).copy()
 
     def find_receiver_calls(self, user_id: int) -> list[ActiveCall]:
-        return [call for call in self._active_calls if call.receiver.id == user_id]
+        return self._calls_by_receivers.get(user_id, []).copy()
+    
+    def _remove_from_dicts(self, call: ActiveCall) -> None:
+        caller_id = call.caller.id
+        receiver_id = call.receiver.id
+        
+        self._calls_by_callers[caller_id].remove(call)
+        if not self._calls_by_callers[caller_id]:
+            del self._calls_by_callers[caller_id]
+        
+        self._calls_by_receivers[receiver_id].remove(call)
+        if not self._calls_by_receivers[receiver_id]:
+            del self._calls_by_receivers[receiver_id]
+        
+        for user_id in [caller_id, receiver_id]:
+            self._calls_by_users[user_id].remove(call)
+            if not self._calls_by_users[user_id]:
+                del self._calls_by_users[user_id]
+        
+        self._active_calls_set.remove((caller_id, receiver_id))
     
     def end_call_by_index(self, call_index: int) -> ActiveCall:
         if call_index < 0 or call_index >= len(self._active_calls):
             raise IndexError(f"Invalid call index: {call_index}")
         
         ended_call = self._active_calls.pop(call_index)
+        self._remove_from_dicts(ended_call)
+        
         if ended_call.is_cross_border:
             self._cross_border_calls_count -= 1
         return ended_call
@@ -138,6 +167,8 @@ class Switchboard:
             raise ValueError("No active calls")
         
         ended_call = self._active_calls.pop()
+        self._remove_from_dicts(ended_call)
+        
         if ended_call.is_cross_border:
             self._cross_border_calls_count -= 1
         return ended_call
@@ -145,9 +176,13 @@ class Switchboard:
     def end_all_calls(self) -> int:
         count = len(self._active_calls)
         self._active_calls.clear()
+        self._calls_by_users.clear()
+        self._calls_by_callers.clear()
+        self._calls_by_receivers.clear()
+        self._active_calls_set.clear()
         self._cross_border_calls_count = 0
         return count
-
+    
     def get_all_active_participant_ids(self) -> set[int]:
         participants = set()
         for call in self._active_calls:
